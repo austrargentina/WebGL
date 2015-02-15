@@ -1,0 +1,172 @@
+<html>
+
+<head>
+<title>Probematura Bracher</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="init_stuff.js"></script>
+<script type="text/javascript" src="objekte.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+	//GLSL Language
+	//Genauigkeit der Fliesskommazahlen (=medium)
+    precision mediump float;
+	
+	varying vec4 vColor;
+	
+	//Preset color = Weiss
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+</script>
+<script id="shader-vs" type="x-shader/x-vertex">
+	//Processing of the final image
+    attribute vec3 aVertexPosition;
+	attribute vec4 aVertexColor;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+	
+	varying vec4 vColor;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+		vColor = aVertexColor;
+    }
+</script>
+
+<script type="text/javascript">
+	document.onkeydown = keyPressed;
+	var animationGestartet = false;
+	
+	//Für Drehung mit Pfeiltasten	
+	function keyPressed(event){
+		if(event.keyCode == 37){	//links
+			objects[objects.length -  1].translate([-1,0,0]);
+			event.preventDefault();
+		}else if(event.keyCode == 39){ 	//rechts
+			objects[objects.length -  1].translate([+1,0,0]); 
+			event.preventDefault();
+		}else if(event.keyCode == 38){ 	//oben
+			objects[objects.length -  1].translate([0,+1,0]); 
+			event.preventDefault();
+		}else if(event.keyCode == 40){ 	//unten
+			objects[objects.length -  1].translate([0,-1,0]); 
+			event.preventDefault();
+		}else if(event.keyCode == 13){ 	//enter
+			animationGestartet = true;
+			event.preventDefault();
+		}else{
+			console.log(event.keyCode);
+		}
+	}
+	
+	function rotateAll(rotation){
+		for(var item in objects){
+			objects[item].rotate(rotation);
+		}
+	}
+	
+	function translateAll(translation){
+		for(var item in objects){
+			objects[item].translate(translation);
+		}
+	}
+
+	//globale Variablen für zu zeichnende Objekte
+    var objects;
+	
+	//Definitionen der 
+	function initObjects(){
+		objects = [];
+		
+		//new Object(skalierung,rotation[grad,axis[x,y,z]],translation[x,y,z],vertices[vertex_array],colors[colorarray],)
+		//objects[objects.length - 1].translate([]);
+		//objects[objects.length - 1].scale();
+		//objects[objects.length - 1].rotate(,[]);
+		
+		objects.push(new Cube()); //Rechts vorne
+	}
+	
+	//Zeichen-Obejekte hinzufügen (push to Graphicscard)
+    function initBuffers() {
+		for(var item in objects){
+			objects[item].initBuffer();
+		}
+    }
+
+	//Das eigentliche Zeichnen der Objekte
+    function drawScene() {
+		//WebGL die Viewport-Abmessungen übergeben
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+		//Canvas löschen, damit wir etwas neues zeichnen können
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	
+		//Einstellen einer Perspektivischen ANischt (und nicht einer orthogonalen) 
+        mat4.perspective(	45, //field of view  
+							gl.viewportWidth / gl.viewportHeight, //width to height ratio of canvas
+							0.1, //dont show things closer than,  
+							100.0, //dont show things further aways than,
+							pMatrix);
+	
+		//Zu einem Ursprungspunkt verschieben
+        mat4.identity(mvMatrix);
+		//Verschieben des Ursrpungs um 8 in die Tiefe
+        mat4.translate(mvMatrix, [0, -2.0, -10.0]);
+		
+		for(item in objects){
+			objects[item].drawObject()
+		}		
+    }
+
+	function tick() {
+		//Ruft die Funktion wieder auf
+		requestAnimFrame(tick);
+		initBuffers();
+		drawScene();
+		animate();
+	}
+	
+	var lastTime = 0;
+	function animate() {
+		var timeNow = new Date().getTime();
+		if (lastTime != 0) {
+			var elapsed = timeNow - lastTime;
+			objects[objects.length -  1].rotation += (100*elapsed) / 1000.0;
+		}
+		lastTime = timeNow;
+		
+		if(animationGestartet === true){
+			//do something
+		}
+	}
+	
+    function webGLStart() {
+		//Zeichen-Canvas aus HTML bekommen
+        var canvas = document.getElementById("canvas");
+		//Initialisierung des WebGL-Kontexts
+        initGL(canvas);
+		//Objekte erstellen
+		initObjects();
+		//Shader hinzufügen
+        initShaders();
+		//Zeichen-Obejekte hinzufügen (push to Graphicscard)
+        initBuffers();
+		//Irgendwas
+        gl.clearColor(1.0, 1.0, 1.0, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+		//Das eigentliche Zeichnen der Objekte
+		tick();
+    }
+</script>
+</head>
+
+<body onload="webGLStart();" bgcolor="black">
+	<div align="center">
+		<canvas id="canvas" style="border: none;" width="600px" height="600px"></canvas>
+	</div>
+</body>
+
+</html>
