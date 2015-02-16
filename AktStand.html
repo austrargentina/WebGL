@@ -14,26 +14,47 @@
 	//Genauigkeit der Fliesskommazahlen (=medium)
     precision mediump float;
 	
+	varying vec3 vLightWeighting;
 	varying vec4 vColor;
+	
+	uniform sampler2D uSampler;
 	
 	//Preset color = Weiss
     void main(void) {
-        gl_FragColor = vColor;
+        gl_FragColor = vec4(vColor.rgb * vLightWeighting, vColor.a);;
     }
 </script>
 <script id="shader-vs" type="x-shader/x-vertex">
 	//Processing of the final image
     attribute vec3 aVertexPosition;
+	attribute vec3 aVertexNormal;	
 	attribute vec4 aVertexColor;
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
+	uniform mat3 uNMatrix;
 	
+	uniform vec3 uAmbientColor;
+
+	uniform vec3 uLightingDirection;
+	uniform vec3 uDirectionalColor;
+
+	uniform bool uUseLighting;
+	
+	varying vec3 vLightWeighting;
 	varying vec4 vColor;
 
     void main(void) {
         gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
 		vColor = aVertexColor;
+		
+		if (!uUseLighting) {
+			vLightWeighting = vec3(1.0, 1.0, 1.0);
+		} else {
+			vec3 transformedNormal = uNMatrix * aVertexNormal;
+			float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+			vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+		}
     }
 </script>
 
@@ -155,7 +176,7 @@
 		//Zeichen-Obejekte hinzufügen (push to Graphicscard)
         initBuffers();
 		//Irgendwas
-        gl.clearColor(1.0, 1.0, 1.0, 1.0);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.enable(gl.DEPTH_TEST);
 		//Das eigentliche Zeichnen der Objekte
 		tick();
@@ -163,10 +184,41 @@
 </script>
 </head>
 
-<body onload="webGLStart();" bgcolor="black">
+<body onload="webGLStart();" bgcolor="white">
 	<div align="center">
 		<canvas id="canvas" style="border: none;" width="600px" height="600px"></canvas>
 	</div>
+	<br />
+    <input type="checkbox" id="lighting" checked /> Use lighting<br/>
+    (Use cursor keys to spin the box and <code>Page Up</code>/<code>Page Down</code> to zoom out/in)
+
+    <br/>
+    <h2>Directional light:</h2>
+
+    <table style="border: 0; padding: 10px;">
+        <tr>
+            <td><b>Direction:</b>
+            <td>X: <input type="text" id="lightDirectionX" value="-0.25" />
+            <td>Y: <input type="text" id="lightDirectionY" value="-0.25" />
+            <td>Z: <input type="text" id="lightDirectionZ" value="-1.0" />
+        </tr>
+        <tr>
+            <td><b>Colour:</b>
+            <td>R: <input type="text" id="directionalR" value="0.8" />
+            <td>G: <input type="text" id="directionalG" value="0.8" />
+            <td>B: <input type="text" id="directionalB" value="0.8" />
+        </tr>
+    </table>
+
+    <h2>Ambient light:</h2>
+    <table style="border: 0; padding: 10px;">
+        <tr>
+            <td><b>Colour:</b>
+            <td>R: <input type="text" id="ambientR" value="0.2" />
+            <td>G: <input type="text" id="ambientG" value="0.2" />
+            <td>B: <input type="text" id="ambientB" value="0.2" />
+        </tr>
+    </table>
 </body>
 
 </html>

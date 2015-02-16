@@ -3,20 +3,22 @@
 //(that crowd goes woopwoop)
 
 function BasicModel(){
-	this.itemSize;				//wieviele zahlen beinhaltet ein item (= koordiante in diesem Fall)
-	this.numItems;				//wieviele items gibt es (= anzahl der koordinaten)
-	this.indexNumItems;			//wiviele items gibt es (= anzahl der indices in diesem Fall)
+	this.itemSize;				//Anzahl der Einheiten, die ein Item beinhaltet(= 3 koordianten in diesem Fall)
+	this.numItems;				//Anzahl der Items (= anzahl der koordinaten)
+	this.indexNumItems;			//Anzahl der Indices
 	this.withIndices;			//ob mit indices gezeichnet wird
-	this.vertices = [];			//vertex array des objekts	
-	this.colors = [];			//farben array des objekts
-	this.indices = [];			//index array des objekts
-	this.position_buffer;		//buffer für die Koordinaten		
-	this.color_buffer;			//buffer für die Farben
-	this.index_buffer; 			//buffer für die indices
-	this.drawMethod;			//art, wie gezeichnet wird (triangle, trianglestrip,...)
+	this.vertices = [];			//Array fuer die Vertices	
+	this.colors = [];			//Array fuer die Farben (fuer jede Koordinate eine)
+	this.indices = [];			//Array fuer die Indizes
+	this.vertexNormals = [];	//Array fuer die Normalen der Vertize
+	this.position_buffer;		//Buffer für die Koordinaten (vertize)		
+	this.color_buffer;			//Buffer für die Farben
+	this.index_buffer; 			//Buffer für die indices
+	this.vertexNormals_buffer;	//Buffer für die vertex normals
+	this.drawMethod;			//Zeichenart (triangle, trianglestrip,...)
 	this.rotation = 0;			//drehung in grad
 	this.rotation_axis = [0,1,0];	//achse, um die sich objekt dreht
-	this.translation = [0.0,0.0,0.0]; //translation-koordinaten
+	this.translation = [0.0,0.0,0.0]; //translations-koordinaten
 	
 	this.initBuffer = function(){
 		//Buffer für Objekt erzeugen
@@ -27,6 +29,8 @@ function BasicModel(){
 		if(this.withIndices === true){
 			this.index_buffer = this.createBuffer(this.indices, "int");
 		}
+		
+		this.vertexNormals_buffer = this.createBuffer(this.vertexNormals, "float");
 	};
 	
 	this.createBuffer = function(data_array, bufferType){
@@ -70,7 +74,43 @@ function BasicModel(){
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
 		gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 		
-		//Index hinzufügen (nur für Cube)
+		//Vertex-Normalen hinzufügen
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexNormal_buffer);
+		gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, this.vertexNormals_buffer.itemSize, gl.FLOAT, false, 0, 0);
+		
+		var lighting = true;
+        gl.uniform1i(shaderProgram.useLightingUniform, lighting);
+		
+        if (lighting) {
+			//Ambient-Lighting
+            gl.uniform3f(
+				shaderProgram.ambientColorUniform,
+				parseFloat(document.getElementById("ambientR").value),
+				parseFloat(document.getElementById("ambientG").value),
+				parseFloat(document.getElementById("ambientB").value)
+			);
+			
+			//Richtung, aus der das Licht kommt
+            var lightingDirection = [
+				parseFloat(document.getElementById("lightDirectionX").value),
+				parseFloat(document.getElementById("lightDirectionY").value),
+				parseFloat(document.getElementById("lightDirectionZ").value)
+			];
+            var adjustedLD = vec3.create();
+            vec3.normalize(lightingDirection, adjustedLD);
+            vec3.scale(adjustedLD, -1);
+            gl.uniform3fv(shaderProgram.lightingDirectionUniform, adjustedLD);
+
+			//Directional-Lighting
+            gl.uniform3f(
+				shaderProgram.directionalColorUniform,
+				parseFloat(document.getElementById("directionalR").value),
+				parseFloat(document.getElementById("directionalG").value),
+				parseFloat(document.getElementById("directionalB").value)
+			);
+        }
+		
+		//Indize hinzufügen (nur für Cube)
 		if(this.withIndices === true){ //hinzufügen eines index buffers für die indices-objekte
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
 		}
@@ -128,46 +168,9 @@ function BasicModel(){
 	}
 }
 
-function Square(vertices, colors){
-	this.withIndices = false;
-	this.itemSize = 3;
-	this.numItems = 4;
-	
-	//PreSets einrichten
-	if(typeof vertices === 'undefined' || vertices === null){
-		this.vertices = [
-			1.0,  1.0,  0.0,
-			-1.0,  1.0,  0.0,
-			 1.0, -1.0,  0.0,
-			-1.0, -1.0,  0.0
-		];
-	}else{
-		this.vertices = vertices;
-	}
-		
-	if(typeof colors === 'undefined' || colors === null){
-		this.colors = [
-			0.3, 0.9, 1.0, 1.0,
-			1.0, 0.9, 0.1, 1.0,
-			0.3, 1.0, 0.1, 1.0,
-			1.0, 0.1, 0.1, 1.0,
-		];
-	}else{
-		this.colors = colors;
-	}
-}
-Square.prototype = new BasicModel(); //Vererbung von BasicModel
-
-function Triangle(vertices, colors){
-	return new Cone(null,null,2, vertices, colors);
-}
-Triangle.prototype = new BasicModel(); //Vererbung von BasicModel
-
-function Pyramid(hoehe, vertices, colors, indices){
-	return new Cone(hoehe,1,4,vertices,colors,indices);
-}
-Pyramid.prototype = new BasicModel(); //Vererbung von BasicModel
-
+/*********************
+		CONE
+**********************/
 function Cone(hoehe, radius, unterteilungen, vertices, colors, indices){	
 	var hoehe = (typeof hoehe === "undefined" || hoehe === null) ? 1 : hoehe; //Falls Hoehe nicht gegeben, auf 1 setzen, ansonsten hoehe
 	var radius = (typeof radius === "undefined" || radius === null) ? 1 : radius; //Falls radius nicht gegeben, auf 1 setzen, ansonsten radius
@@ -239,7 +242,18 @@ function Cone(hoehe, radius, unterteilungen, vertices, colors, indices){
 }
 Cone.prototype = new BasicModel(); //Vererbung von BasicModel
 
-function Cube(breite, hoehe, tiefe, vertices, colors, indices){
+/*********************
+		PYRAMID
+**********************/
+function Pyramid(hoehe, vertices, colors, indices){
+	return new Cone(hoehe,1,4,vertices,colors,indices);
+}
+Pyramid.prototype = new BasicModel(); //Vererbung von BasicModel
+
+/*********************
+		CUBE
+**********************/
+function Cube(breite, hoehe, tiefe, vertices, colors, indices, normals){
 	var breite = (typeof breite === "undefined" || breite === null) ? 2 : breite; //Falls breite nicht gegeben, auf 1 setzen, ansonsten breite
 	var hoehe = (typeof hoehe === "undefined" || hoehe === null) ? 2 : hoehe; //Falls Hoehe nicht gegeben, auf 1 setzen, ansonsten hoehe
 	var tiefe = (typeof tiefe === "undefined" || tiefe === null) ? 2 : tiefe; //Falls tiefe nicht gegeben, auf 4 setzen, ansonsten tiefe
@@ -251,6 +265,7 @@ function Cube(breite, hoehe, tiefe, vertices, colors, indices){
 	this.indices = [];	//Um bug auszuräumen
 	this.colors = [];	//		-||-
 	this.vertices = [];	//		-||-
+	this.vertexNormals = [];
 				
 	if(typeof vertices === 'undefined' || vertices === null){
 		//Vordere flaeche
@@ -316,9 +331,54 @@ function Cube(breite, hoehe, tiefe, vertices, colors, indices){
 	}	 
 	
 	this.indexNumItems = this.indices.length;
+	
+	if(typeof normals === 'undefined' || normals === null){
+		this.vertexNormals = [
+			//Vordere flaeche
+			0.0,  0.0,  1.0,
+			0.0,  0.0,  1.0,
+			0.0,  0.0,  1.0,
+			0.0,  0.0,  1.0,
+			
+			// Rechte flaeche
+			1.0,  0.0,  0.0,
+			1.0,  0.0,  0.0,
+			1.0,  0.0,  0.0,
+			1.0,  0.0,  0.0,
+
+			// Hintere flaeche
+			0.0,  0.0, -1.0,
+			0.0,  0.0, -1.0,
+			0.0,  0.0, -1.0,
+			0.0,  0.0, -1.0,
+
+			// Linke flaeche
+			-1.0,  0.0,  0.0,
+			-1.0,  0.0,  0.0,
+			-1.0,  0.0,  0.0,
+			-1.0,  0.0,  0.0,
+
+			// Obere flaeche
+			0.0,  1.0,  0.0,
+			0.0,  1.0,  0.0,
+			0.0,  1.0,  0.0,
+			0.0,  1.0,  0.0,
+
+			// Untere flaeche
+			0.0, -1.0,  0.0,
+			0.0, -1.0,  0.0,
+			0.0, -1.0,  0.0,
+			0.0, -1.0,  0.0
+		];
+	}else{
+		this.vertexNormals = normals;
+	}
 }
 Cube.prototype = new BasicModel(); //Vererbung von BasicModel
 
+/*********************
+		CYLINDER
+**********************/
 function Cylinder(hoehe, radius, unterteilungen, vertices, colors, indices){
 	var hoehe = (typeof hoehe === "undefined" || hoehe === null) ? 1 : hoehe; //Falls Hoehe nicht gegeben, auf 1 setzen, ansonsten hoehe
 	var radius = (typeof radius === "undefined" || radius === null) ? 1 : radius; //Falls radius nicht gegeben, auf 1 setzen, ansonsten radius
@@ -401,6 +461,9 @@ function Cylinder(hoehe, radius, unterteilungen, vertices, colors, indices){
 }
 Cylinder.prototype = new BasicModel(); //Vererbung von BasicModel
 
+/*********************
+		SPHERE
+**********************/
 function Sphere(radius, vertices, colors, indices){
 	var radius = (typeof radius === "undefined" || radius === null) ? 1 : radius; //Falls radius nicht gegeben, auf 1 setzen, ansonsten radius	
 	var latitudeBands = 50;
@@ -464,3 +527,45 @@ function Sphere(radius, vertices, colors, indices){
 	this.indexNumItems = this.indices.length;
 }
 Sphere.prototype = new BasicModel(); //Vererbung von BasicModel
+
+
+/*********************
+		SQUARE
+**********************/
+function Square(vertices, colors){
+	this.withIndices = false;
+	this.itemSize = 3;
+	this.numItems = 4;
+	
+	//PreSets einrichten
+	if(typeof vertices === 'undefined' || vertices === null){
+		this.vertices = [
+			1.0,  1.0,  0.0,
+			-1.0,  1.0,  0.0,
+			 1.0, -1.0,  0.0,
+			-1.0, -1.0,  0.0
+		];
+	}else{
+		this.vertices = vertices;
+	}
+		
+	if(typeof colors === 'undefined' || colors === null){
+		this.colors = [
+			0.3, 0.9, 1.0, 1.0,
+			1.0, 0.9, 0.1, 1.0,
+			0.3, 1.0, 0.1, 1.0,
+			1.0, 0.1, 0.1, 1.0,
+		];
+	}else{
+		this.colors = colors;
+	}
+}
+Square.prototype = new BasicModel(); //Vererbung von BasicModel
+
+/*********************
+		TRIANGLE
+**********************/
+function Triangle(vertices, colors){
+	return new Cone(null,null,2, vertices, colors);
+}
+Triangle.prototype = new BasicModel(); //Vererbung von BasicModel
