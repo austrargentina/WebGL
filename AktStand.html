@@ -15,46 +15,55 @@
     precision mediump float;
 	
 	varying vec3 vLightWeighting;
-	varying vec4 vColor;
 	
 	uniform sampler2D uSampler;
+	//varying vec4 vColor;
+	
+	//uniform sampler2D uSampler;
 	
 	//Preset color = Weiss
     void main(void) {
-        gl_FragColor = vec4(vColor.rgb * vLightWeighting, vColor.a);;
+		vec4 fragmentColor;	
+		fragmentColor = vec4(1.0, 1.0, 1.0, 1.0);			
+		gl_FragColor = vec4(fragmentColor.rgb * vLightWeighting, fragmentColor.a);
+        //gl_FragColor = vec4(vColor.rgb * vLightWeighting, vColor.a);;
     }
 </script>
 <script id="shader-vs" type="x-shader/x-vertex">
 	//Processing of the final image
     attribute vec3 aVertexPosition;
-	attribute vec3 aVertexNormal;	
-	attribute vec4 aVertexColor;
+    attribute vec3 aVertexNormal;
+    attribute vec2 aTextureCoord;
+	
+	//attribute vec4 aVertexColor;
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
-	uniform mat3 uNMatrix;
-	
-	uniform vec3 uAmbientColor;
+    uniform mat3 uNMatrix;
 
-	uniform vec3 uLightingDirection;
-	uniform vec3 uDirectionalColor;
+    uniform vec3 uAmbientColor;
 
-	uniform bool uUseLighting;
+    uniform vec3 uLightingDirection;
+    uniform vec3 uDirectionalColor;
+
+    uniform bool uUseLighting;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vLightWeighting;
 	
-	varying vec3 vLightWeighting;
-	varying vec4 vColor;
+	//varying vec4 vColor;
 
     void main(void) {
         gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-		vColor = aVertexColor;
+		//vColor = aVertexColor;
 		
 		if (!uUseLighting) {
-			vLightWeighting = vec3(1.0, 1.0, 1.0);
-		} else {
-			vec3 transformedNormal = uNMatrix * aVertexNormal;
-			float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
-			vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
-		}
+            vLightWeighting = vec3(1.0, 1.0, 1.0);
+        } else {
+            vec3 transformedNormal = uNMatrix * aVertexNormal;
+            float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+            vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+        }
     }
 </script>
 
@@ -108,7 +117,7 @@
 		//objects[objects.length - 1].scale();
 		//objects[objects.length - 1].rotate(,[]);
 		
-		objects.push(new Cube()); //Rechts vorne
+		objects.push(new Sphere()); //Rechts vorne
 	}
 	
 	//Zeichen-Obejekte hinzufügen (push to Graphicscard)
@@ -126,7 +135,7 @@
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	
 		//Einstellen einer Perspektivischen ANischt (und nicht einer orthogonalen) 
-        mat4.perspective(	45, //field of view  
+        mat4.perspective(	60, //field of view  
 							gl.viewportWidth / gl.viewportHeight, //width to height ratio of canvas
 							0.1, //dont show things closer than,  
 							100.0, //dont show things further aways than,
@@ -134,8 +143,37 @@
 	
 		//Zu einem Ursprungspunkt verschieben
         mat4.identity(mvMatrix);
-		//Verschieben des Ursrpungs um 8 in die Tiefe
-        mat4.translate(mvMatrix, [0, -2.0, -10.0]);
+		
+		var lighting = document.getElementById("lighting").checked;
+        gl.uniform1i(shaderProgram.useLightingUniform, lighting);
+        if (lighting) {
+            gl.uniform3f(
+                shaderProgram.ambientColorUniform,
+                parseFloat(document.getElementById("ambientR").value),
+                parseFloat(document.getElementById("ambientG").value),
+                parseFloat(document.getElementById("ambientB").value)
+            );
+
+            var lightingDirection = [
+                parseFloat(document.getElementById("lightDirectionX").value),
+                parseFloat(document.getElementById("lightDirectionY").value),
+                parseFloat(document.getElementById("lightDirectionZ").value)
+            ];
+            var adjustedLD = vec3.create();
+            vec3.normalize(lightingDirection, adjustedLD);
+            vec3.scale(adjustedLD, -1);
+            gl.uniform3fv(shaderProgram.lightingDirectionUniform, adjustedLD);
+
+            gl.uniform3f(
+                shaderProgram.directionalColorUniform,
+                parseFloat(document.getElementById("directionalR").value),
+                parseFloat(document.getElementById("directionalG").value),
+                parseFloat(document.getElementById("directionalB").value)
+            );
+        }
+		
+		//Verschieben des Ursrpungs
+        mat4.translate(mvMatrix, [0, 0, -6]);
 		
 		for(item in objects){
 			objects[item].drawObject()
@@ -186,7 +224,7 @@
 
 <body onload="webGLStart();" bgcolor="white">
 	<div align="center">
-		<canvas id="canvas" style="border: none;" width="600px" height="600px"></canvas>
+		<canvas id="canvas" style="border: none;" width="1200px" height="600px"></canvas>
 	</div>
 	<br />
     <input type="checkbox" id="lighting" checked /> Use lighting<br/>
@@ -214,9 +252,9 @@
     <table style="border: 0; padding: 10px;">
         <tr>
             <td><b>Colour:</b>
-            <td>R: <input type="text" id="ambientR" value="0.2" />
-            <td>G: <input type="text" id="ambientG" value="0.2" />
-            <td>B: <input type="text" id="ambientB" value="0.2" />
+            <td>R: <input type="text" id="ambientR" value="0.5" />
+            <td>G: <input type="text" id="ambientG" value="0.5" />
+            <td>B: <input type="text" id="ambientB" value="0.5" />
         </tr>
     </table>
 </body>

@@ -76,39 +76,7 @@ function BasicModel(){
 		
 		//Vertex-Normalen hinzufügen
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexNormal_buffer);
-		gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, this.vertexNormals_buffer.itemSize, gl.FLOAT, false, 0, 0);
-		
-		var lighting = true;
-        gl.uniform1i(shaderProgram.useLightingUniform, lighting);
-		
-        if (lighting) {
-			//Ambient-Lighting
-            gl.uniform3f(
-				shaderProgram.ambientColorUniform,
-				parseFloat(document.getElementById("ambientR").value),
-				parseFloat(document.getElementById("ambientG").value),
-				parseFloat(document.getElementById("ambientB").value)
-			);
-			
-			//Richtung, aus der das Licht kommt
-            var lightingDirection = [
-				parseFloat(document.getElementById("lightDirectionX").value),
-				parseFloat(document.getElementById("lightDirectionY").value),
-				parseFloat(document.getElementById("lightDirectionZ").value)
-			];
-            var adjustedLD = vec3.create();
-            vec3.normalize(lightingDirection, adjustedLD);
-            vec3.scale(adjustedLD, -1);
-            gl.uniform3fv(shaderProgram.lightingDirectionUniform, adjustedLD);
-
-			//Directional-Lighting
-            gl.uniform3f(
-				shaderProgram.directionalColorUniform,
-				parseFloat(document.getElementById("directionalR").value),
-				parseFloat(document.getElementById("directionalG").value),
-				parseFloat(document.getElementById("directionalB").value)
-			);
-        }
+		gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
 		
 		//Indize hinzufügen (nur für Cube)
 		if(this.withIndices === true){ //hinzufügen eines index buffers für die indices-objekte
@@ -476,6 +444,7 @@ function Sphere(radius, vertices, colors, indices){
 	this.indices = [];	//Um bug auszuräumen
 	this.colors = [];	//		-||-
 	this.vertices = [];	//		-||-
+	this.vertexNormals = [];
 			
 	if(typeof vertices === 'undefined' || vertices === null){
 		
@@ -489,11 +458,12 @@ function Sphere(radius, vertices, colors, indices){
 				var sinPhi = Math.sin(phi);
 				var cosPhi = Math.cos(phi);
 
-				var x = radius * cosPhi * sinTheta;
-				var y = radius * cosTheta;
-				var z = radius * sinPhi * sinTheta;
-
-				this.vertices.push(x, y, z);
+				var x = cosPhi * sinTheta;
+				var y = cosTheta;
+				var z = sinPhi * sinTheta;
+				
+				this.vertexNormals.push(x,y,z);
+				this.vertices.push(radius * x, radius * y, radius * z);
 			}
 		}
 	}else{
