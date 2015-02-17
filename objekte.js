@@ -6,15 +6,24 @@ function BasicModel(){
 	this.itemSize;				//Anzahl der Einheiten, die ein Item beinhaltet(= 3 koordianten in diesem Fall)
 	this.numItems;				//Anzahl der Items (= anzahl der koordinaten)
 	this.indexNumItems;			//Anzahl der Indices
+	
 	this.withIndices;			//ob mit indices gezeichnet wird
+	this.withTexture = false;	//Standard-Einstellung, dass ohne Textur gezeichnet wird
+	
+	this.texture;				//verwaltet die textur (auch src)
+	
 	this.vertices = [];			//Array fuer die Vertices	
 	this.colors = [];			//Array fuer die Farben (fuer jede Koordinate eine)
 	this.indices = [];			//Array fuer die Indizes
+	this.textCoords = [];		//Array fuer die Koordinaten der Textur
 	this.vertexNormals = [];	//Array fuer die Normalen der Vertize
+	
 	this.position_buffer;		//Buffer für die Koordinaten (vertize)		
 	this.color_buffer;			//Buffer für die Farben
 	this.index_buffer; 			//Buffer für die indices
+	this.texture_buffer;
 	this.vertexNormals_buffer;	//Buffer für die vertex normals
+	
 	this.drawMethod;			//Zeichenart (triangle, trianglestrip,...)
 	this.rotation = 0;			//drehung in grad
 	this.rotation_axis = [0,1,0];	//achse, um die sich objekt dreht
@@ -22,9 +31,15 @@ function BasicModel(){
 	
 	this.initBuffer = function(){
 		//Buffer für Objekt erzeugen
-		this.position_buffer = this.createBuffer(this.vertices, "float");	
-		//Buffer für Farben erzeugen
-		this.color_buffer = this.createBuffer(this.colors, "float");
+		this.position_buffer = this.createBuffer(this.vertices, "float");
+		
+		if(this.withTexture === true){
+			//Buffer fuer die Texturen erzeugen
+			this.texture_buffer = this.createBuffer(this.textCoords, "float");
+		}else{
+			//Buffer für Farben erzeugen
+			this.color_buffer = this.createBuffer(this.colors, "float");
+		}
 		
 		if(this.withIndices === true){
 			this.index_buffer = this.createBuffer(this.indices, "int");
@@ -32,6 +47,36 @@ function BasicModel(){
 		
 		this.vertexNormals_buffer = this.createBuffer(this.vertexNormals, "float");
 	};
+	
+	this.setTexture = function(src){
+		this.withTexture = true;
+		this.texture = gl.createTexture();
+		this.texture.src = src;
+	}
+	
+	this.initTexture = function(){
+		if(typeof this.texture === 'undefined'){
+			this.texture = gl.createTexture();
+		}
+		//JS-Image Object erstellen
+        this.texture.image = new Image();
+		var temp = this.texture;
+		//Wenn das bild geladen ist, dann weiterverarbeiten 
+        this.texture.image.onload = function () {
+            handleLoadedTexture(temp);
+        }
+		//Src-File bestimmen
+        this.texture.image.src = this.texture.src;
+	}
+	
+	function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
 	
 	this.createBuffer = function(data_array, bufferType){
 		if(bufferType ===  "float"){
@@ -70,9 +115,17 @@ function BasicModel(){
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.position_buffer);
 		gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, this.position_buffer.itemSize, gl.FLOAT, false, 0, 0);
 		
-		//Farben hinzufügen
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
-		gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+		if(this.withTexture === true){
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.texture_buffer);
+			gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, this.texture);
+			gl.uniform1i(shaderProgram.samplerUniform, 0);
+		}else{
+			//Farben hinzufügen
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.color_buffer);
+			gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+		}
 		
 		//Vertex-Normalen hinzufügen
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexNormal_buffer);
@@ -285,6 +338,44 @@ function Cube(breite, hoehe, tiefe, vertices, colors, indices, normals){
 	}else{
 		this.colors = colors;
 	}
+	
+	this.textCoords = [
+		// Front face
+		0.0, 1.0,
+		1.0, 1.0,
+		0.0, 0.0,
+		1.0, 0.0,
+
+		// Right face
+		0.0, 1.0,
+		1.0, 1.0,
+		0.0, 0.0,
+		1.0, 0.0,		
+
+		// Back face
+		0.0, 1.0,
+		1.0, 1.0,
+		0.0, 0.0,
+		1.0, 0.0,
+
+		// Right face
+		0.0, 1.0,
+		1.0, 1.0,
+		0.0, 0.0,
+		1.0, 0.0,
+
+		// Top face
+		0.0, 0.0,
+		1.0, 0.0,
+		1.0, 1.0,
+		0.0, 1.0,
+
+		// Bottom face
+		0.0, 1.0,
+		1.0, 1.0,
+		1.0, 0.0,
+		0.0, 0.0
+	];
 	
 	if(typeof indices === 'undefined' || indices === null){
 		//Fuer setilichen faces
